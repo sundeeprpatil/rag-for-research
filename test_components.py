@@ -5,6 +5,7 @@ Test each RAG component independently
 import os 
 
 from dotenv import load_dotenv
+from flask.wrappers import Response
 from torch.utils.data import Dataset
 
 
@@ -73,6 +74,25 @@ def test_faiss(docs):
 
     print(f" Results : {len(results)}")
     
+    return results 
+
+def test_generation(results):
+
+    import config_ 
+
+    from generation import generation 
+
+    query = "what causes battery degradation"
+
+    print(f" Model: {config_.BASE_LLM} ({config_.LLM[config_.BASE_LLM]})")
+
+    print (f" Query : {query}")
+
+    response = generation(query, config_.PROMPT, results)
+
+    print(f" Response : {Response}")
+    return response 
+
 
 if __name__ == "__main__":
 
@@ -87,7 +107,13 @@ if __name__ == "__main__":
         print(f" Parsing failed {e} ")
 
     try :
-        test_faiss(docs)
+        relevant_docs = test_faiss(docs)
     except Exception as e: 
         print(f" Something wrong in Faiss {e} ")
+    
+    try :
+        response = test_generation(relevant_docs)
+    except Exception as e: 
+        print(f" Something wrong in Generation {e} ")
+    
     
