@@ -1,0 +1,1 @@
+from infrastructures.database.faiss.db import FaissDatabase
