@@ -23,7 +23,7 @@ EVAL_QUESTIONS = [
 ]
 
 
-def build_eval_samples(pipeline_func) -> list[EvalSample]:
+def build_eval_samples(run_rag_pipeline) -> list[EvalSample]:
 
     """
     Build evaluation metrics by running each question through pipeline
@@ -33,7 +33,7 @@ def build_eval_samples(pipeline_func) -> list[EvalSample]:
     samples = []
 
     for item in EVAL_QUESTIONS:
-        result = run_evaluation(item["question"])
+        result = run_rag_pipeline(item["question"])
         samples.append(
             EvalSample(
                 question=item["question"],

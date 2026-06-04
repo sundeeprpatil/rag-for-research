@@ -109,3 +109,21 @@ curl -X POST http://localhost:5000/query\
  -H "Content-type: application/json" \ 
  -d '{"query":"What cause lithium -ion battery degradation?"}'  
 ```
+
+## Evaluation 
+
+Measures retrieval and generation quality using [RAGAS](https://docs.ragas.io/) metrics
+
+|Metric| What it measures| Target|
+|-----|-----------|---------|
+|**Faithfulness**| Is the answer grounded in retrieved context ? | > 0.8| 
+|**Answer Relevancy**| Does the answer address the question | > 0.8|
+|**Context Precision**|  Are retrieved chunk relevant to question | > 0.6|
+|**Context Recall**| Do retrieved chunks cover ground truth | > 0.9 |
+
+Results are persisted to `eval_results\` as timestamped JSON for **tracking improvements across pipeline changes**
+
+**Observation:** Faithfulness scores with 1.0 with `flan-t5-small` is expected as the model is highly extractive (copies from context) and lacks the parametric knowledge to hallucinate. The motivation for upgrading models comes from low **answer relevancy** (incomplete, terse answers), not faithfulness. This is the classic small-model trade-off : high groundedness and low expressiveness
+
+
+

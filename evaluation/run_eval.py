@@ -81,13 +81,13 @@ def running_evals():
     result = run_evaluation(samples, llm= JUDGE_LLM, embeddings= JUDGE_EMBEDDINGS)
 
 
-    print(f" Faithfullness : {result['faithfulness']:.4f }")
+    print(f" Faithfullness : {result.faithfulness:.4f }")
 
-    print(f" Answer relevancy: {result['answer_relevancy']:.4f}")
+    print(f" Answer relevancy: {result.answer_relevancy:.4f}")
 
-    print(f" Context precision : {result['context_precision']:.4f}")
+    print(f" Context precision : {result.context_precision:.4f}")
 
-    print(f" context recall : {result['context_recall']:.4f }")
+    print(f" context recall : {result.context_recall:.4f }")
 
 
     file_path = save_eval_results(result)

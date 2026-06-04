@@ -41,7 +41,7 @@ class EvalResult:
     context_precision:float 
     context_recall: float 
     num_samples: int 
-    timestamp: str 
+    timestamp: str = field(default_factory = lambda : datetime.utcnow().isoformat())
 
 
     def to_dict(self)->dict:
@@ -88,10 +88,10 @@ def run_evaluation(samples: list[EvalSample], llm=None, embeddings=None)->EvalRe
     result = evaluate(**eval_kwargs)
 
     return EvalResult(
-        faithfulness=result["faithfulness"],
-        answer_relevancy=result["answer_relevancy"],
-        context_precision=result["context_precision"],
-        context_recall = result["context_recall"],
+        faithfulness=float(result["faithfulness"]),
+        answer_relevancy=float(result["answer_relevancy"]),
+        context_precision=float(result["context_precision"]),
+        context_recall = float(result["context_recall"]),
         num_samples= len(samples)
     )
 
@@ -107,7 +107,7 @@ def save_eval_results (result: EvalResult, output_dir : str ="eval_results"):
         json.dump(result.to_dict(), f, indent =2 )
     
     return filepath 
-    
+
 
 
 
