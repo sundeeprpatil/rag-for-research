@@ -32,7 +32,8 @@ class BM25Index:
 
 
 
-def reciprocal_rank_fusion(ranked_list: List[List[Document]],
+def reciprocal_rank_fusion(
+    ranked_list: List[List[Document]],
     k : int = 60)-> List[Document]:
 
     """

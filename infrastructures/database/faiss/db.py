@@ -1,3 +1,7 @@
+import os
+
+# FAISS (OpenMP) + PyTorch/sentence-transformers on macOS need this at import time.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 from config_ import DATASET_CONFIG
 
@@ -12,6 +16,15 @@ import numpy as np
 import pickle
 
 
+_EMBEDDING_MODEL: SentenceTransformer | None = None
+
+
+def get_embedding_model() -> SentenceTransformer:
+    global _EMBEDDING_MODEL
+    if _EMBEDDING_MODEL is None:
+        _EMBEDDING_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+    return _EMBEDDING_MODEL
+
 
 class Faiss:
     """
@@ -19,12 +32,7 @@ class Faiss:
     """
 
     def __init__(self, database_config: Dict[str, Any]) -> None:
-        
-       
-        #6-layer language model for sentence embeddings 
-        self.model = SentenceTransformer("all-MiniLM-L6-V2")
-
-
+        self._model: SentenceTransformer | None = None
         self.index_file_name = database_config["db_base_path"]
 
         self.index_meta_file_name = database_config["db_base_path"].split(".")[0] + "_metadata.pkl"
@@ -41,7 +49,14 @@ class Faiss:
         #for incremental updates 
         self.id_to_embedding = {}
         self.next_id = 0 # store the id of the last document that was indexed
-        self.doc_store = {} 
+        self.doc_store = {}
+
+    @property
+    def model(self) -> SentenceTransformer:
+        """Load after FAISS index I/O to avoid OpenMP clashes on macOS."""
+        if self._model is None:
+            self._model = get_embedding_model()
+        return self._model
 
     def _create_embedding_for_documents(self, documents: List[Document]):
 
@@ -70,9 +85,8 @@ class Faiss:
             print(f'Index stored successfully')
             #TODO : store also metadata as we incremental increase 
             docs_with_metadata = {
-                "docstore" : self.doc_store,
-                 "next_id" : self.next_id,  
-                "id_to_embedding": self.id_to_embedding
+                "docstore": self.doc_store,
+                "next_id": self.next_id,
             }
             with open (self.index_meta_file_name, 'wb') as f: 
                 pickle.dump(docs_with_metadata, f)
@@ -116,12 +130,14 @@ class Faiss:
     def load_index(self):
 
         self.index = faiss.read_index(self.index_file_name)
-        if self.index.ntotal > 0:
-            embedding_vector = np.zeros((1, self.index.d))
-            self.dimension = embedding_vector.shape[1]
-            print(f'index is loaded')
-        else:
+        if self.index.ntotal <= 0:
             raise ValueError('Index file is empty ')
+        self.dimension = self.index.d
+        # One dummy search before PyTorch loads (avoids OpenMP crash on macOS).
+        faiss.omp_set_num_threads(1)
+        probe = np.zeros((1, self.dimension), dtype=np.float32)
+        self.index.search(probe, 1)
+        print(f'index is loaded')
 
         with open(self.index_meta_file_name, 'rb') as file_name:
             docs_with_metadata = pickle.load(file_name)
@@ -129,7 +145,10 @@ class Faiss:
 
         self.doc_store = docs_with_metadata["docstore"]
         self.next_id = docs_with_metadata["next_id"]
-        self.id_to_embedding = docs_with_metadata["id_to_embedding"]
+        # Drop legacy id_to_embedding blob so it is not kept alive in RAM.
+        docs_with_metadata.pop("id_to_embedding", None)
+        del docs_with_metadata
+        self.id_to_embedding = {}
 
 
 
@@ -146,7 +165,11 @@ class Faiss:
             raise ValueError("Index is not created")
     
         query_embedding = self.model.encode(query)
-        distance, indices  =  self.index.search(np.reshape(query_embedding, [1, self.dimension]), 5)
+        query_vector = np.reshape(
+            np.asarray(query_embedding, dtype=np.float32),
+            (1, self.dimension),
+        )
+        _, indices = self.index.search(query_vector, top_k)
 
 
         
