@@ -6,6 +6,7 @@ import os
 
 from dotenv import load_dotenv
 from flask.wrappers import Response
+from langchain_core.callbacks.manager import H
 from torch.utils.data import Dataset
 
 
@@ -94,6 +95,33 @@ def test_generation(results):
     return response 
 
 
+def test_hybrid_retriever(docs):
+    import config_ 
+
+    from infrastructures.retrieval.hybrid import HybridRetriever
+
+    retriever = HybridRetriever(config_.DATABASE)
+
+    print(f" Build hybrid index ")
+    retriever.build_index(docs)
+
+    #reload from disk
+
+    retriever2 = HybridRetriever(config_.DATABASE)
+
+    retriever2.load_index()
+
+    query = "what causes battery degradation"
+
+    results = retriever2.search(query, top_k= 5)
+
+    for i, doc in enumerate(results): 
+
+        print(f" [{i+1}] {doc.page_content[:80]}")
+
+    return results 
+
+
 if __name__ == "__main__":
 
     print(" Battery Research - RAG Component tests")
@@ -111,6 +139,11 @@ if __name__ == "__main__":
     except Exception as e: 
         print(f" Something wrong in Faiss {e} ")
     
+    try :
+        response = test_hybrid_retriever(relevant_docs)
+    except Exception as e: 
+        print(f" Something wrong in Hybrid retriever {e} ")
+
     try :
         response = test_generation(relevant_docs)
     except Exception as e: 

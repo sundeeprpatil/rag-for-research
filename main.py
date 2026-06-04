@@ -9,7 +9,7 @@ import config_
 from generation import generation
 
 from infrastructures.database.faiss.db import FaissDatabase
-
+from infrastructures.retrieval.hybrid import HybridRetriever
 
 
 load_dotenv(".env")
@@ -46,15 +46,16 @@ def preprocess_and_train():
     
     print('Data parsed and split into chunks for training')
 
-    print(f' Begin training ')
+    print(f' Begin training : hybrid FAISS and BM25 ')
 
-    db = FaissDatabase(database_config)
+    retriever = HybridRetriever(database_config)
+
+    retriever.build_index(cleaned_chunks_docs)
     
-    db.create_and_save_index(cleaned_chunks_docs)
 
-    print(f'Training Complete ')
+    print(f'Training Complete = Dense Indices + Sparse Indices built ')
 
-    return 'Training Done: Index and MetaDataFile available'
+    return 'Training Complete = Dense Indices + Sparse Indices built'
 
     
 
@@ -66,12 +67,14 @@ def query():
 
     database_config = config_.DATABASE
     prompt_config = config_.PROMPT
-    #TODO: change to DB 
-    db = FaissDatabase(database_config)
-    db.load_index() 
-    result = db.get_relevant_documents(user_query)
+
+
+    retriever = HybridRetriever(database_config)
+    retriever.load_index()
+    result = retriever.search(user_query, top_k=5)
+
     print(f"query {user_query} \n")
-    print(f"result {result}")
+    print(f"result - hybrid RRF  {result}")
 
     response = generation(user_query, prompt_config, result)
 

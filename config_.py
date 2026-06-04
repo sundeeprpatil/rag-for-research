@@ -24,6 +24,13 @@ RETRIEVALS = {
     "similarity_topk_search_kwargs":{
         "top_k": 5,
         "extra_chunks_required": 3
+    },
+    "hybrid":{
+        "top_k": 5,
+        "dense_k":10,
+        "sparse_k":10,
+        "rrf_k": 60 , # reciprocal rank fusion
+    
     }
 }
 
