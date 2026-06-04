@@ -28,8 +28,12 @@ class Faiss:
         self.index_file_name = database_config["db_base_path"]
 
         self.index_meta_file_name = database_config["db_base_path"].split(".")[0] + "_metadata.pkl"
-        # just running for IndexIVF 
-        self.index_params = {"nlist": 100, "metric_type": faiss.METRIC_L2} # database_config["faiss"]["index_params"][self.index_type]
+        self.index_params = {
+            "nlist": database_config.get("nlist", 100),
+            "metric_type": faiss.METRIC_L2,
+            # IVF training needs ~39 vectors per cluster; below this we use flat L2
+            "min_vectors_for_ivf": database_config.get("min_vectors_for_ivf", 39),
+        }
 
         self.index = None 
         self.dimension = None 
@@ -83,19 +87,31 @@ class Faiss:
 
         embeddings, ids = self._create_embedding_for_documents(documents)
         self.dimension = embeddings.shape[1]
+        n_vectors = len(embeddings)
 
-        metric_type = faiss.METRIC_L2
-        quantizer = faiss.IndexFlatL2(self.dimension)
-        num_points = self.index_params["nlist"]
-        self.index = faiss.IndexIVFFlat(quantizer, self.dimension, num_points , metric_type)
+        faiss.omp_set_num_threads(1)  # TODO: for now cpu
+        metric_type = self.index_params["metric_type"]
+        min_for_ivf = self.index_params["min_vectors_for_ivf"]
 
-        faiss.omp_set_num_threads(1) # TODO: for now cpu
-        self.index.train(embeddings)
-        
-        #self.index.add(embeddings) 
-        self.index.add_with_ids(embeddings, ids)
-        #self.next_i += len(documents)#TODO : add with paperId's to optimize for incremental update
-        self.doc_store.update({id_: doc for id_, doc in zip(ids, documents)})
+        if n_vectors < min_for_ivf:
+            base_index = faiss.IndexFlatL2(self.dimension)
+        else:
+            # FAISS requires n_vectors >= nlist for IVF training
+            nlist = min(self.index_params["nlist"], n_vectors)
+            quantizer = faiss.IndexFlatL2(self.dimension)
+            base_index = faiss.IndexIVFFlat(
+                quantizer, self.dimension, nlist, metric_type
+            )
+            base_index.train(embeddings)
+
+        # Flat/IVF indexes do not support add_with_ids; IndexIDMap adds that API
+        self.index = faiss.IndexIDMap(base_index)
+        self.index.add_with_ids(
+            embeddings.astype(np.float32),
+            ids.astype(np.int64),
+        )
+        self.next_id = int(ids[-1]) + 1
+        self.doc_store.update({int(id_): doc for id_, doc in zip(ids, documents)})
 
     def load_index(self):
 

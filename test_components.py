@@ -140,7 +140,7 @@ if __name__ == "__main__":
         print(f" Something wrong in Faiss {e} ")
     
     try :
-        response = test_hybrid_retriever(relevant_docs)
+        relevant_docs = test_hybrid_retriever(docs)
     except Exception as e: 
         print(f" Something wrong in Hybrid retriever {e} ")
 

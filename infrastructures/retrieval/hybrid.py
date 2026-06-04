@@ -5,9 +5,9 @@
 
 from typing import Dict , Any, List 
 
-from rank_bm25 import BM25OKapi 
+from rank_bm25 import BM25Okapi 
 
-from langchain_schema import Document 
+from langchain.schema import Document 
 
 
 from infrastructures.database.faiss.db import FaissDatabase
@@ -18,11 +18,11 @@ class BM25Index:
 
     def __init__(self, documents:List[Document]):
         self.documents = documents
-        self.corpus [doc.page_content.lower().split() for doc in documents]
-        self.bm25 = BM25OKapi(self.corpus)
+        self.corpus = [doc.page_content.lower().split() for doc in documents]
+        self.bm25 = BM25Okapi(self.corpus)
 
 
-    def search(self, query:str, top_k : int =10 )- > List[tuple[Document, float]]:
+    def search(self, query:str, top_k : int =10 ) -> List[tuple[Document, float]]:
 
         tokenized_query = query.lower().split()
         scores = self.bm25.get_scores(tokenized_query)
@@ -35,11 +35,16 @@ class BM25Index:
 def reciprocal_rank_fusion(ranked_list: List[List[Document]],
     k : int = 60)-> List[Document]:
 
-    "Combines rankded lists into single ranking "
+    """
+    Implements reciprocal rank fusion : Cormack et.al : 2009
+    Combines rankded lists into single ranking 
+    Score = sum(1/(k+rank_i)), k= 60 default 
+    """
 
 
-    fused_scores = Dict[int, float] = {}
-    doc_map = Dict[int, Document] = {}
+
+    fused_scores : Dict[int, float] = {}
+    doc_map : Dict[int, Document] = {}
 
     for ranked_docs in ranked_list: 
         for rank, doc in enumerate(ranked_docs):
@@ -79,6 +84,7 @@ class HybridRetriever:
 
         self.faiss_db.load_index()
         all_docs = list(self.faiss_db.db.doc_store.values())
+        self.bm25_index = BM25Index(all_docs)
 
     
     def search(self, query: str, top_k:int = 5, dense_k:int=10, sparse_k:int=10)-> List[Document]:

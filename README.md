@@ -126,4 +126,20 @@ Results are persisted to `eval_results\` as timestamped JSON for **tracking impr
 **Observation:** Faithfulness scores with 1.0 with `flan-t5-small` is expected as the model is highly extractive (copies from context) and lacks the parametric knowledge to hallucinate. The motivation for upgrading models comes from low **answer relevancy** (incomplete, terse answers), not faithfulness. This is the classic small-model trade-off : high groundedness and low expressiveness
 
 
+### Retrieval comparison : Dense vs Hybrid 
 
+Compare dense-only (FAISS) and hybrid (BM25 + FAISS + weighted RRF) retrieval
+
+
+Measures per-query :
+- **Docs unique to hybrid:** - chunks BM25 found that FAISS missed 
+- **Docs unique to dense:** - chunks lost due to RRF re-ranking 
+- **Key word hit rate delta:** - lexical recall improvement from BM25 
+
+**Observation:**
+Equal-weight RRG degraded semantic queries, BM25 "polluated" top-k with keyword - matched but semantically irrelevant chunks. Fix **weighted RRF** (dense= 0.7, sparse=0.3). For **abstract-heavy** like this use case, semantic similarity is the primary signal. BM25 acts as corrective for exact match cases
+
+```
+Dense-weight: 0.7 (primary - semantic similarity)
+Sparse-weight: 0.3 (corrective - lexical/ keyword match)
+``` 
